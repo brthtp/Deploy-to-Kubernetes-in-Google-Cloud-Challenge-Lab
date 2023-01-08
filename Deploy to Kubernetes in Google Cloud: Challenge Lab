@@ -1,0 +1,86 @@
+Run all commands in Cloud Shell
+
+Task 1: Create a Docker image and store the Dockerfile
+
+gsutil cat gs://cloud-training/gsp318/marking/setup_marking.sh | bash
+
+gcloud source repos clone valkyrie-app
+
+cd valkyrie-app
+
+cat > Dockerfile <<EOF
+FROM golang:1.10
+WORKDIR /go/src/app
+COPY source .
+RUN go install -v
+ENTRYPOINT ["app","-single=true","-port=8080"]
+EOF
+
+docker build -t <Docker Image>:<Tag Name> .    (change the version wherever required)
+
+cd ..
+
+cd marking
+
+./step1_v2.sh
+
+
+
+
+------------------------------NOTE----------------------------------------------
+
+
+====>1. Replace <Tag Name> with Tag name provided to you in lab.
+====>2. Replace <Docker Image> with Docker Image provided to you in lab.
+====>3. Replace <valkyrie-repo> with Repository Name provided to you in lab.
+
+
+---------------------------------------------------------------------------------
+
+Task 2: Test the created Docker image
+
+cd ..
+
+cd valkyrie-app
+
+ 
+docker run -p 8080:8080 <Docker Image>:<Tag Name> &
+
+# When your container is running you will see the page by Web Preview
+
+cd ..
+
+cd marking
+
+./step2_v2.sh
+
+
+
+Task 3: Push the Docker image in the Google Container Repository
+
+cd ..
+
+cd valkyrie-app
+
+gcloud artifacts repositories create valkyrie-repo --repository-format=Docker \
+--location=us-central1
+
+
+docker tag <Docker Image>:<Tag Name> us-central1-docker.pkg.dev/qwiklabs-gcp-00-53b0558e98f4/valkyrie-repo/<Docker Image>:<Tag Name>
+
+docker-credential-gcr configure-docker --registries=us-central1-docker.pkg.dev
+
+docker push us-central1-docker.pkg.dev/qwiklabs-gcp-00-53b0558e98f4/valkyrie-repo/<Docker Image>:<Tag Name>
+
+
+
+
+Task 4: Create and expose a deployment in Kubernetes
+
+sed -i  s#IMAGE_HERE#us-central1-docker.pkg.dev/qwiklabs-gcp-00-53b0558e98f4/valkyrie-repo/<Docker Image>:<Tag Name>#g k8s/deployment.yaml
+
+gcloud container clusters get-credentials valkyrie-dev --zone us-east1-d
+
+kubectl create -f k8s/deployment.yaml
+
+kubectl create -f k8s/service.yaml
